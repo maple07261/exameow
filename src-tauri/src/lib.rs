@@ -14,6 +14,8 @@ use std::fmt;
 use std::future::Future;
 
 mod ai_requests;
+#[cfg(target_os = "windows")]
+mod answer_float_windows;
 mod ota;
 use ai_requests::AiRequestRegistry;
 #[cfg(target_os = "macos")]
@@ -28,6 +30,30 @@ fn make_webview_transparent(win: &tauri::WebviewWindow) {
             let _: () = msg_send![ns_window, setBackgroundColor: clear];
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn configure_answer_float_spaces(win: &tauri::WebviewWindow) -> Result<(), CommandError> {
+    let window = win.clone();
+    win.run_on_main_thread(move || {
+        use objc::runtime::{Object, NO};
+        use objc::{msg_send, sel, sel_impl};
+        if let Ok(ptr) = window.ns_window() {
+            unsafe {
+                let ns_window = ptr as *mut Object;
+                // AppKit NSWindowCollectionBehavior: join Spaces and accompany
+                // full-screen apps instead of becoming a primary full-screen window.
+                const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
+                const FULL_SCREEN_PRIMARY: usize = 1 << 7;
+                const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+                let behavior: usize = msg_send![ns_window, collectionBehavior];
+                let behavior = (behavior & !FULL_SCREEN_PRIMARY)
+                    | CAN_JOIN_ALL_SPACES | FULL_SCREEN_AUXILIARY;
+                let _: () = msg_send![ns_window, setCollectionBehavior: behavior];
+                let _: () = msg_send![ns_window, setHidesOnDeactivate: NO];
+            }
+        }
+    }).map_err(|e| CommandError(format!("Failed to configure answer-float Spaces: {e}")))
 }
 
 use tauri::Manager;
@@ -646,6 +672,8 @@ async fn create_record_windows(app: tauri::AppHandle) -> Result<(), CommandError
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
+    .visible_on_all_workspaces(true)
+    .shadow(false)
     .resizable(true)
     .visible(true)
     .build()
@@ -654,7 +682,17 @@ async fn create_record_windows(app: tauri::AppHandle) -> Result<(), CommandError
     #[cfg(target_os = "macos")]
     make_webview_transparent(&_float);
 
+    #[cfg(target_os = "macos")]
+    configure_answer_float_spaces(&_float)?;
+
     place_window(&_float, float_x, float_y, float_w, float_h)?;
+
+    #[cfg(target_os = "windows")]
+    if let Err(e) = answer_float_windows::install(&_float).await {
+        _float.close().ok();
+        _overlay.close().ok();
+        return Err(CommandError(format!("Failed to maintain answer-float Z-order: {e}")));
+    }
 
     Ok(())
 }

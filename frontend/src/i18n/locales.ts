@@ -2,6 +2,14 @@
 export type Locale = 'zh' | 'zh-TW' | 'en' | 'ja' | 'ko' | 'es' | 'fr' | 'de' | 'ru' | 'ar'
 
 export interface LocaleMessages {
+
+  answerFloatAppearance: string
+  answerFloatBackground: string
+  answerFloatText: string
+  answerFloatFontSize: string
+  answerFloatReset: string
+  answerFloatTopmostRetry: string
+
   practiceUnchaptered: string
   practiceChapterImportHint: string
   genAutoChapter: string
@@ -501,6 +509,14 @@ export interface LocaleMessages {
 }
 
 export const zh: LocaleMessages = {
+
+  answerFloatAppearance: '浮窗外观',
+  answerFloatBackground: '窗口背景透明度',
+  answerFloatText: '文字透明度',
+  answerFloatFontSize: '答案字号',
+  answerFloatReset: '恢复默认',
+  answerFloatTopmostRetry: '置顶失败，点击重试',
+
   practiceUnchaptered: "未分章",
   practiceChapterImportHint: "CSV/XLSX 可填写“章节”列，同名自动分组；无章节列仍可正常导入。",
   genAutoChapter: "AI 自动分章",
@@ -1000,6 +1016,14 @@ export const zh: LocaleMessages = {
 }
 
 export const zhTW: LocaleMessages = {
+
+  answerFloatAppearance: '浮窗外觀',
+  answerFloatBackground: '視窗背景透明度',
+  answerFloatText: '文字透明度',
+  answerFloatFontSize: '答案字型大小',
+  answerFloatReset: '恢復預設',
+  answerFloatTopmostRetry: '置頂失敗，點擊重試',
+
   practiceUnchaptered: "未分章",
   practiceChapterImportHint: "CSV/XLSX 可填寫「章節」欄，同名自動分組；無章節欄仍可正常匯入。",
   genAutoChapter: "AI 自動分章",
@@ -1499,6 +1523,14 @@ export const zhTW: LocaleMessages = {
 }
 
 export const en: LocaleMessages = {
+
+  answerFloatAppearance: 'Window appearance',
+  answerFloatBackground: 'Background transparency',
+  answerFloatText: 'Text transparency',
+  answerFloatFontSize: 'Answer font size',
+  answerFloatReset: 'Reset',
+  answerFloatTopmostRetry: 'Always-on-top failed. Click to retry',
+
   practiceUnchaptered: "Unchaptered",
   practiceChapterImportHint: "Add a Chapter column to CSV/XLSX to group questions by name. Files without chapters still work.",
   genAutoChapter: "AI chapter tagging",
@@ -1998,6 +2030,14 @@ export const en: LocaleMessages = {
 }
 
 export const ja: LocaleMessages = {
+
+  answerFloatAppearance: 'ウィンドウの外観',
+  answerFloatBackground: '背景の透明度',
+  answerFloatText: '文字の透明度',
+  answerFloatFontSize: '回答の文字サイズ',
+  answerFloatReset: '初期設定に戻す',
+  answerFloatTopmostRetry: '最前面表示に失敗しました。クリックして再試行',
+
   practiceUnchaptered: "章未設定",
   practiceChapterImportHint: "CSV/XLSX の「Chapter」列で同名の章をまとめます。章のないファイルも読み込めます。",
   genAutoChapter: "AIで章を自動設定",
@@ -2497,6 +2537,14 @@ export const ja: LocaleMessages = {
 }
 
 export const ko: LocaleMessages = {
+
+  answerFloatAppearance: '창 모양',
+  answerFloatBackground: '배경 투명도',
+  answerFloatText: '글자 투명도',
+  answerFloatFontSize: '답변 글자 크기',
+  answerFloatReset: '초기화',
+  answerFloatTopmostRetry: '항상 위에 표시하지 못했습니다. 클릭하여 다시 시도',
+
   practiceUnchaptered: "미분류",
   practiceChapterImportHint: "CSV/XLSX에 Chapter 열을 추가하면 같은 이름으로 묶습니다. 장이 없는 파일도 가져올 수 있습니다.",
   genAutoChapter: "AI 자동 장 분류",
@@ -2996,6 +3044,14 @@ export const ko: LocaleMessages = {
 }
 
 export const es: LocaleMessages = {
+
+  answerFloatAppearance: 'Apariencia de la ventana',
+  answerFloatBackground: 'Transparencia del fondo',
+  answerFloatText: 'Transparencia del texto',
+  answerFloatFontSize: 'Tamaño del texto de respuesta',
+  answerFloatReset: 'Restablecer',
+  answerFloatTopmostRetry: 'No se pudo mantener encima. Haz clic para reintentar',
+
   practiceUnchaptered: "Sin capítulo",
   practiceChapterImportHint: "Añade una columna Chapter al CSV/XLSX para agrupar por nombre. También se admiten archivos sin capítulos.",
   genAutoChapter: "Capítulos automáticos con IA",
@@ -3495,6 +3551,14 @@ export const es: LocaleMessages = {
 }
 
 export const fr: LocaleMessages = {
+
+  answerFloatAppearance: 'Apparence de la fenêtre',
+  answerFloatBackground: 'Transparence du fond',
+  answerFloatText: 'Transparence du texte',
+  answerFloatFontSize: 'Taille du texte de réponse',
+  answerFloatReset: 'Réinitialiser',
+  answerFloatTopmostRetry: 'Échec du premier plan. Cliquez pour réessayer',
+
   practiceUnchaptered: "Sans chapitre",
   practiceChapterImportHint: "Ajoutez une colonne Chapter au CSV/XLSX pour regrouper par nom. Les fichiers sans chapitres restent compatibles.",
   genAutoChapter: "Chapitres automatiques par IA",
@@ -3994,6 +4058,14 @@ export const fr: LocaleMessages = {
 }
 
 export const de: LocaleMessages = {
+
+  answerFloatAppearance: 'Fensterdarstellung',
+  answerFloatBackground: 'Hintergrundtransparenz',
+  answerFloatText: 'Texttransparenz',
+  answerFloatFontSize: 'Schriftgröße der Antwort',
+  answerFloatReset: 'Zurücksetzen',
+  answerFloatTopmostRetry: 'Immer im Vordergrund fehlgeschlagen. Zum Wiederholen klicken',
+
   practiceUnchaptered: "Ohne Kapitel",
   practiceChapterImportHint: "Eine Chapter-Spalte in CSV/XLSX gruppiert Fragen nach Namen. Dateien ohne Kapitel werden weiterhin unterstützt.",
   genAutoChapter: "KI-Kapitelzuordnung",
@@ -4493,6 +4565,14 @@ export const de: LocaleMessages = {
 }
 
 export const ru: LocaleMessages = {
+
+  answerFloatAppearance: 'Внешний вид окна',
+  answerFloatBackground: 'Прозрачность фона',
+  answerFloatText: 'Прозрачность текста',
+  answerFloatFontSize: 'Размер шрифта ответа',
+  answerFloatReset: 'Сбросить',
+  answerFloatTopmostRetry: 'Не удалось закрепить поверх окон. Нажмите для повтора',
+
   practiceUnchaptered: "Без главы",
   practiceChapterImportHint: "Столбец Chapter в CSV/XLSX группирует вопросы по названию. Файлы без глав также поддерживаются.",
   genAutoChapter: "Главы с помощью ИИ",
@@ -4992,6 +5072,14 @@ export const ru: LocaleMessages = {
 }
 
 export const ar: LocaleMessages = {
+
+  answerFloatAppearance: 'مظهر النافذة',
+  answerFloatBackground: 'شفافية الخلفية',
+  answerFloatText: 'شفافية النص',
+  answerFloatFontSize: 'حجم خط الإجابة',
+  answerFloatReset: 'إعادة الضبط',
+  answerFloatTopmostRetry: 'تعذر إبقاء النافذة في المقدمة. انقر لإعادة المحاولة',
+
   practiceUnchaptered: "بلا فصل",
   practiceChapterImportHint: "أضف عمود Chapter إلى CSV/XLSX لتجميع الأسئلة حسب الاسم. تبقى الملفات بلا فصول مدعومة.",
   genAutoChapter: "تصنيف الفصول بالذكاء الاصطناعي",

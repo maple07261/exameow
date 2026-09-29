@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useScreenRecordStore } from '@/stores/screenRecord'
+import { useAnswerFloatSettings } from '@/composables/useAnswerFloatSettings'
+import type { Window } from '@tauri-apps/api/window'
 import { useI18nStore } from '@/stores/i18n'
 import {
+  AdjustmentsHorizontalIcon,
   ArrowsPointingOutIcon,
   CheckIcon,
   MagnifyingGlassIcon,
@@ -15,11 +18,14 @@ import { PlayIcon } from '@heroicons/vue/24/solid'
 const store = useScreenRecordStore()
 const i18n = useI18nStore()
 
+const { settings, style: appearanceStyle, reset: resetAppearance } = useAnswerFloatSettings()
+const showAppearance = ref(false)
+const topmostError = ref(false)
 const adjusting = ref(true)
 const hasBegun = ref(false)
 const unlistenFns: Array<() => void> = []
 
-let win: any = null
+let win: Window | null = null
 let ctl: {
   initFloat: () => Promise<void>
   adjust: () => Promise<void>
@@ -30,6 +36,10 @@ onMounted(async () => {
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   const { listen } = await import('@tauri-apps/api/event')
   win = getCurrentWindow()
+  await restoreTopmost()
+  unlistenFns.push(await win.onFocusChanged(({ payload: focused }) => {
+    if (!focused) void restoreTopmost()
+  }))
 
   const { useScreenRecord } = await import('@/composables/useScreenRecord')
   ctl = useScreenRecord()
@@ -44,6 +54,16 @@ onMounted(async () => {
 onUnmounted(() => {
   for (const fn of unlistenFns) fn()
 })
+
+async function restoreTopmost() {
+  try {
+    await win?.setAlwaysOnTop(true)
+    topmostError.value = false
+  } catch (error) {
+    topmostError.value = true
+    console.warn('[answer-float] Could not restore always-on-top:', error)
+  }
+}
 
 function onDragArea(e: MouseEvent) {
   if (e.button !== 0 || !win) return
@@ -77,7 +97,7 @@ function isCorrect(idx: number): boolean {
 
 <template>
   <div class="w-full h-full select-none">
-    <div class="float-card w-full h-full flex flex-col">
+    <div class="float-card w-full h-full flex flex-col" :style="appearanceStyle">
       <div
         class="shrink-0 cursor-grab active:cursor-grabbing"
         @mousedown="onDragArea"
@@ -88,11 +108,22 @@ function isCorrect(idx: number): boolean {
         <div class="flex items-center justify-between pl-3.5 pr-2 py-1.5">
           <div class="flex items-center gap-1.5 min-w-0">
             <VideoCameraIcon class="w-4 h-4 shrink-0" style="color: var(--accent);" />
-            <span class="text-[13px] font-semibold truncate" style="color: var(--fg);">
+            <span class="float-title text-[13px] font-semibold truncate" style="color: var(--fg);">
               {{ i18n.t('searchModeScreenRecord') }}
             </span>
           </div>
-          <div class="flex items-center gap-1.5 shrink-0">
+          <div class="float-actions flex items-center gap-1.5 shrink-0">
+            <button
+              class="float-btn"
+              @mousedown.stop
+              @click="showAppearance = !showAppearance"
+              :title="i18n.t('answerFloatAppearance')"
+              :aria-label="i18n.t('answerFloatAppearance')"
+              :aria-expanded="showAppearance"
+              aria-controls="answer-appearance"
+            >
+              <AdjustmentsHorizontalIcon class="w-4 h-4" />
+            </button>
             <button
               class="float-btn"
               @mousedown.stop
@@ -112,6 +143,28 @@ function isCorrect(idx: number): boolean {
           </div>
         </div>
       </div>
+
+      <div v-if="showAppearance" id="answer-appearance" class="float-settings shrink-0">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <strong>{{ i18n.t('answerFloatAppearance') }}</strong>
+          <button class="underline cursor-pointer" @click="resetAppearance">{{ i18n.t('answerFloatReset') }}</button>
+        </div>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatBackground') }} <output>{{ settings.backgroundTransparency }}%</output></span>
+          <input v-model.number="settings.backgroundTransparency" type="range" min="0" max="100" step="1" />
+        </label>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatText') }} <output>{{ settings.textTransparency }}%</output></span>
+          <input v-model.number="settings.textTransparency" type="range" min="0" max="100" step="1" />
+        </label>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatFontSize') }} <output>{{ settings.fontSize }} px</output></span>
+          <input v-model.number="settings.fontSize" type="range" min="10" max="36" step="1" />
+        </label>
+      </div>
+      <button v-if="topmostError" class="float-settings shrink-0 text-left" @click="restoreTopmost">
+        {{ i18n.t('answerFloatTopmostRetry') }}
+      </button>
 
       <div v-if="adjusting && hasBegun" class="shrink-0 px-3.5 pb-1.5">
         <div class="float-paused">
@@ -147,7 +200,7 @@ function isCorrect(idx: number): boolean {
             </span>
           </div>
 
-          <p class="text-[13px] leading-snug line-clamp-3" style="color: var(--fg);">
+          <p class="text-[13px] leading-snug" style="color: var(--fg);">
             {{ store.currentResult.question.stem }}
           </p>
 
@@ -158,14 +211,14 @@ function isCorrect(idx: number): boolean {
               class="float-option"
               :class="{ 'float-option-correct': isCorrect(idx) }"
             >
-              <span class="float-letter" :class="{ 'float-letter-correct': isCorrect(idx) }">
-                {{ String.fromCharCode(65 + idx) }}
-              </span>
-              <span class="truncate text-[12px]">{{ opt }}</span>
+              <div class="float-letter" :class="{ 'float-letter-correct': isCorrect(idx) }">
+                <span>{{ String.fromCharCode(65 + idx) }}</span>
+              </div>
+              <span class="float-option-text">{{ opt }}</span>
             </div>
           </div>
 
-          <p class="text-[10px] pt-0.5 truncate" style="color: var(--fg2);">
+          <p class="float-bank pt-0.5" style="color: var(--fg2);">
             {{ store.currentResult.bankName }}
           </p>
         </div>
@@ -210,11 +263,11 @@ html, body, #app {
 .float-card {
   --fg: rgb(var(--md-on-surface));
   --fg2: rgb(var(--md-on-surface-variant));
-  --fill: rgb(var(--md-surface-container-high));
+  --fill: rgb(var(--md-surface-container-high) / var(--background-opacity));
   --accent: rgb(var(--md-primary));
-  background: rgb(var(--md-surface-container));
+  background: rgb(var(--md-surface-container) / var(--background-opacity));
   border-radius: 16px;
-  border: 1px solid rgb(var(--md-outline-variant));
+  border: 1px solid rgb(var(--md-outline-variant) / var(--background-opacity));
   overflow: hidden;
 }
 
@@ -222,9 +275,18 @@ html, body, #app {
   width: 36px;
   height: 5px;
   border-radius: 999px;
-  background: rgb(var(--md-outline-variant));
+  background: rgb(var(--md-outline-variant) / var(--background-opacity));
 }
 
+.float-actions {
+  --button-background-opacity: var(--background-opacity);
+  --button-icon-opacity: var(--text-opacity);
+}
+/* Keep transparent controls recoverable without changing the saved settings. */
+.float-actions:hover {
+  --button-background-opacity: 1;
+  --button-icon-opacity: 1;
+}
 .float-btn {
   width: 28px;
   height: 28px;
@@ -235,8 +297,17 @@ html, body, #app {
   border: none;
   cursor: pointer;
   color: var(--fg);
-  background: var(--fill);
+  background: rgb(var(--md-surface-container-high) / var(--button-background-opacity));
   transition: filter 0.15s ease, transform 0.1s ease;
+}
+.float-btn > svg {
+  opacity: var(--button-icon-opacity);
+}
+.float-btn:focus-visible {
+  --button-background-opacity: 1;
+  --button-icon-opacity: 1;
+  outline: 2px solid rgb(var(--md-primary));
+  outline-offset: 2px;
 }
 .float-btn:hover {
   filter: brightness(0.94);
@@ -257,7 +328,7 @@ html, body, #app {
   font-size: 11px;
   font-weight: 600;
   color: rgb(var(--md-on-tertiary-container));
-  background: rgb(var(--md-tertiary-container));
+  background: rgb(var(--md-tertiary-container) / var(--background-opacity));
 }
 
 .float-answer {
@@ -267,7 +338,7 @@ html, body, #app {
   padding: 6px 14px;
   border-radius: 999px;
   color: rgb(var(--md-on-primary-container));
-  background: rgb(var(--md-primary-container));
+  background: rgb(var(--md-primary-container) / var(--background-opacity));
   animation: float-pop 0.25s ease;
 }
 
@@ -283,7 +354,7 @@ html, body, #app {
 .float-option-correct {
   color: rgb(var(--md-on-primary-container));
   font-weight: 600;
-  background: rgb(var(--md-primary-container));
+  background: rgb(var(--md-primary-container) / var(--background-opacity));
 }
 
 .float-letter {
@@ -297,11 +368,11 @@ html, body, #app {
   font-size: 10px;
   font-weight: 700;
   color: var(--fg2);
-  background: rgb(var(--md-surface-container-highest));
+  background: rgb(var(--md-surface-container-highest) / var(--background-opacity));
 }
 .float-letter-correct {
   color: rgb(var(--md-on-primary));
-  background: rgb(var(--md-primary));
+  background: rgb(var(--md-primary) / var(--background-opacity));
 }
 
 .float-empty-icon {
@@ -314,6 +385,33 @@ html, body, #app {
   color: var(--fg2);
   background: var(--fill);
 }
+
+.float-title, .float-paused span, .float-body p, .float-body span {
+  opacity: var(--text-opacity);
+}
+.float-body {
+  font-size: var(--answer-font-size);
+  overflow-wrap: anywhere;
+}
+.float-body p, .float-answer span, .float-option-text {
+  font-size: inherit;
+}
+.float-body .float-bank { font-size: 0.85em; }
+.float-answer { border-radius: 12px; max-width: 100%; }
+.float-option { align-items: flex-start; }
+.float-option-text { min-width: 0; white-space: normal; }
+.float-letter { width: 1.7em; height: 1.7em; font-size: 0.8em; }
+.float-settings {
+  color: rgb(var(--md-on-surface));
+  background: rgb(var(--md-surface-container-high));
+  padding: 10px 14px;
+  font-size: 12px;
+  max-height: 55%;
+  overflow-y: auto;
+}
+.float-setting { display: block; margin-top: 5px; }
+.float-setting span { display: flex; justify-content: space-between; gap: 8px; }
+.float-setting input { display: block; width: 100%; accent-color: rgb(var(--md-primary)); }
 
 .float-body::-webkit-scrollbar {
   width: 4px;
