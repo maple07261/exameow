@@ -14,6 +14,10 @@ use std::fmt;
 use std::future::Future;
 
 mod ai_requests;
+#[cfg(desktop)]
+mod answer_float_controls;
+#[cfg(target_os = "windows")]
+mod answer_float_windows;
 mod ota;
 use ai_requests::AiRequestRegistry;
 #[cfg(target_os = "macos")]
@@ -28,6 +32,30 @@ fn make_webview_transparent(win: &tauri::WebviewWindow) {
             let _: () = msg_send![ns_window, setBackgroundColor: clear];
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn configure_answer_float_spaces(win: &tauri::WebviewWindow) -> Result<(), CommandError> {
+    let window = win.clone();
+    win.run_on_main_thread(move || {
+        use objc::runtime::{Object, NO};
+        use objc::{msg_send, sel, sel_impl};
+        if let Ok(ptr) = window.ns_window() {
+            unsafe {
+                let ns_window = ptr as *mut Object;
+                // AppKit NSWindowCollectionBehavior: join Spaces and accompany
+                // full-screen apps instead of becoming a primary full-screen window.
+                const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
+                const FULL_SCREEN_PRIMARY: usize = 1 << 7;
+                const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+                let behavior: usize = msg_send![ns_window, collectionBehavior];
+                let behavior = (behavior & !FULL_SCREEN_PRIMARY)
+                    | CAN_JOIN_ALL_SPACES | FULL_SCREEN_AUXILIARY;
+                let _: () = msg_send![ns_window, setCollectionBehavior: behavior];
+                let _: () = msg_send![ns_window, setHidesOnDeactivate: NO];
+            }
+        }
+    }).map_err(|e| CommandError(format!("Failed to configure answer-float Spaces: {e}")))
 }
 
 use tauri::Manager;
@@ -570,7 +598,7 @@ fn place_window(win: &tauri::WebviewWindow, x: f64, y: f64, w: f64, h: f64) -> R
 #[tauri::command]
 async fn create_record_windows(app: tauri::AppHandle) -> Result<(), CommandError> {
     if let Some(w) = app.get_webview_window("record-overlay") { w.close().ok(); }
-    if let Some(w) = app.get_webview_window("answer-float") { w.close().ok(); }
+    if let Some(w) = app.get_webview_window("answer-float") { w.destroy().ok(); }
 
     *LAST_FRAME.lock().unwrap() = None;
 
@@ -646,6 +674,8 @@ async fn create_record_windows(app: tauri::AppHandle) -> Result<(), CommandError
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
+    .visible_on_all_workspaces(true)
+    .shadow(false)
     .resizable(true)
     .visible(true)
     .build()
@@ -654,7 +684,18 @@ async fn create_record_windows(app: tauri::AppHandle) -> Result<(), CommandError
     #[cfg(target_os = "macos")]
     make_webview_transparent(&_float);
 
+    #[cfg(target_os = "macos")]
+    configure_answer_float_spaces(&_float)?;
+
     place_window(&_float, float_x, float_y, float_w, float_h)?;
+    answer_float_controls::start(&_float);
+
+    #[cfg(target_os = "windows")]
+    if let Err(e) = answer_float_windows::install(&_float).await {
+        _float.close().ok();
+        _overlay.close().ok();
+        return Err(CommandError(format!("Failed to maintain answer-float Z-order: {e}")));
+    }
 
     Ok(())
 }
@@ -674,7 +715,8 @@ fn close_record_windows(app: tauri::AppHandle) -> Result<(), CommandError> {
         w.close().ok();
     }
     if let Some(w) = app.get_webview_window("answer-float") {
-        w.close().ok();
+        // Explicit session shutdown has already been confirmed by its caller.
+        w.destroy().ok();
     }
     Ok(())
 }
@@ -702,6 +744,22 @@ fn resize_record_overlay(_app: tauri::AppHandle, _w: f64, _h: f64) -> Result<(),
     Ok(())
 }
 
+#[tauri::command]
+async fn configure_answer_float_shortcut(window: tauri::WebviewWindow, shortcut: String) -> Result<String, CommandError> {
+    #[cfg(desktop)]
+    { answer_float_controls::configure_shortcut(window, shortcut).await.map_err(CommandError) }
+    #[cfg(not(desktop))]
+    { let _ = (window, shortcut); Err(CommandError("Desktop only".into())) }
+}
+
+#[tauri::command]
+async fn set_answer_float_topmost(window: tauri::WebviewWindow, topmost: bool) -> Result<bool, CommandError> {
+    #[cfg(desktop)]
+    { answer_float_controls::set_layer(window, topmost).await.map_err(CommandError) }
+    #[cfg(not(desktop))]
+    { let _ = (window, topmost); Err(CommandError("Desktop only".into())) }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -720,7 +778,9 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(answer_float_controls::Controls::default());
     builder
         .manage(AiRequestRegistry::new())
         .setup(|app| {
@@ -776,6 +836,8 @@ pub fn run() {
             create_record_windows,
             close_record_windows,
             resize_record_overlay,
+            configure_answer_float_shortcut,
+            set_answer_float_topmost,
             ota::ota_check,
             ota::ota_download,
             ota::ota_notify_ready,

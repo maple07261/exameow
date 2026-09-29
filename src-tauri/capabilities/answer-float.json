@@ -1,0 +1,6 @@
+{
+  "identifier": "answer-float",
+  "platforms": ["windows", "macOS", "linux"],
+  "windows": ["answer-float"],
+  "permissions": ["core:window:allow-set-always-on-top"]
+}
