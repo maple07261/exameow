@@ -2,6 +2,20 @@
 export type Locale = 'zh' | 'zh-TW' | 'en' | 'ja' | 'ko' | 'es' | 'fr' | 'de' | 'ru' | 'ar'
 
 export interface LocaleMessages {
+  answerFloatCloseClicks: string
+  answerFloatCloseSeconds: string
+  answerFloatCloseProgress: string
+  answerFloatCloseInstruction: string
+  answerFloatShortcut: string
+  answerFloatShortcutCapture: string
+  answerFloatShortcutModifier: string
+  answerFloatShortcutSave: string
+  answerFloatShortcutFailed: string
+  answerFloatShortcutActive: string
+  answerFloatLayerTop: string
+  answerFloatLayerBack: string
+  answerFloatSendBack: string
+  answerFloatBringTop: string
 
   answerFloatAppearance: string
   answerFloatBackground: string
@@ -508,7 +522,38 @@ export interface LocaleMessages {
   manageColTime: string
 }
 
+const floatControlsEn = {
+  answerFloatCloseClicks: 'Clicks required to close',
+  answerFloatCloseSeconds: 'Close confirmation time',
+  answerFloatCloseProgress: 'Click {remaining} more times within {seconds} seconds of the first click to close',
+  answerFloatCloseInstruction: 'Click the close button {count} times within {seconds} seconds',
+  answerFloatShortcut: 'Global shortcut: top / back',
+  answerFloatShortcutCapture: 'Click the field, then press your key combination',
+  answerFloatShortcutModifier: 'Include Control, Command or Alt',
+  answerFloatShortcutSave: 'Save shortcut',
+  answerFloatShortcutFailed: 'Could not register shortcut. It may be in use; try another combination. Any previous working shortcut is unchanged.',
+  answerFloatShortcutActive: 'Active shortcut',
+  answerFloatLayerTop: 'Current layer: on top',
+  answerFloatLayerBack: 'Current layer: behind (press shortcut to restore)',
+  answerFloatSendBack: 'Send behind',
+  answerFloatBringTop: 'Bring to top',
+}
+
 export const zh: LocaleMessages = {
+  answerFloatCloseClicks: '关闭所需点击次数',
+  answerFloatCloseSeconds: '连续点击时限',
+  answerFloatCloseProgress: '请在首次点击后的 {seconds} 秒内再点 {remaining} 次关闭',
+  answerFloatCloseInstruction: '请在 {seconds} 秒内点击右上角关闭按钮 {count} 次',
+  answerFloatShortcut: '置顶／置后全局快捷键',
+  answerFloatShortcutCapture: '点击输入框，然后按下快捷键组合',
+  answerFloatShortcutModifier: '请包含 Ctrl、Command 或 Alt 修饰键',
+  answerFloatShortcutSave: '保存快捷键',
+  answerFloatShortcutFailed: '快捷键注册失败：可能已被占用，请换一组键重试。原有效快捷键不变。',
+  answerFloatShortcutActive: '当前有效快捷键',
+  answerFloatLayerTop: '当前状态：置顶',
+  answerFloatLayerBack: '当前状态：置后（再按快捷键恢复）',
+  answerFloatSendBack: '置于后端',
+  answerFloatBringTop: '恢复置顶',
 
   answerFloatAppearance: '浮窗外观',
   answerFloatBackground: '窗口背景透明度',
@@ -1016,6 +1061,20 @@ export const zh: LocaleMessages = {
 }
 
 export const zhTW: LocaleMessages = {
+  answerFloatCloseClicks: '關閉所需點擊次數',
+  answerFloatCloseSeconds: '連續點擊時限',
+  answerFloatCloseProgress: '請在首次點擊後的 {seconds} 秒內再點 {remaining} 次關閉',
+  answerFloatCloseInstruction: '請在 {seconds} 秒內點擊右上角關閉按鈕 {count} 次',
+  answerFloatShortcut: '置頂／置後全域快捷鍵',
+  answerFloatShortcutCapture: '點擊輸入框，然後按下快捷鍵組合',
+  answerFloatShortcutModifier: '請包含 Ctrl、Command 或 Alt 修飾鍵',
+  answerFloatShortcutSave: '儲存快捷鍵',
+  answerFloatShortcutFailed: '快捷鍵註冊失敗：可能已被佔用，請換一組鍵重試。原有效快捷鍵不變。',
+  answerFloatShortcutActive: '目前有效快捷鍵',
+  answerFloatLayerTop: '目前狀態：置頂',
+  answerFloatLayerBack: '目前狀態：置後（再按快捷鍵恢復）',
+  answerFloatSendBack: '置於後端',
+  answerFloatBringTop: '恢復置頂',
 
   answerFloatAppearance: '浮窗外觀',
   answerFloatBackground: '視窗背景透明度',
@@ -1523,6 +1582,7 @@ export const zhTW: LocaleMessages = {
 }
 
 export const en: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'Window appearance',
   answerFloatBackground: 'Background transparency',
@@ -2030,6 +2090,7 @@ export const en: LocaleMessages = {
 }
 
 export const ja: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'ウィンドウの外観',
   answerFloatBackground: '背景の透明度',
@@ -2537,6 +2598,7 @@ export const ja: LocaleMessages = {
 }
 
 export const ko: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: '창 모양',
   answerFloatBackground: '배경 투명도',
@@ -3044,6 +3106,7 @@ export const ko: LocaleMessages = {
 }
 
 export const es: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'Apariencia de la ventana',
   answerFloatBackground: 'Transparencia del fondo',
@@ -3551,6 +3614,7 @@ export const es: LocaleMessages = {
 }
 
 export const fr: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'Apparence de la fenêtre',
   answerFloatBackground: 'Transparence du fond',
@@ -4058,6 +4122,7 @@ export const fr: LocaleMessages = {
 }
 
 export const de: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'Fensterdarstellung',
   answerFloatBackground: 'Hintergrundtransparenz',
@@ -4565,6 +4630,7 @@ export const de: LocaleMessages = {
 }
 
 export const ru: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'Внешний вид окна',
   answerFloatBackground: 'Прозрачность фона',
@@ -5072,6 +5138,7 @@ export const ru: LocaleMessages = {
 }
 
 export const ar: LocaleMessages = {
+  ...floatControlsEn,
 
   answerFloatAppearance: 'مظهر النافذة',
   answerFloatBackground: 'شفافية الخلفية',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { useScreenRecordStore } from '@/stores/screenRecord'
 import { useAnswerFloatSettings } from '@/composables/useAnswerFloatSettings'
 import type { Window } from '@tauri-apps/api/window'
@@ -21,6 +22,25 @@ const i18n = useI18nStore()
 const { settings, style: appearanceStyle, reset: resetAppearance } = useAnswerFloatSettings()
 const showAppearance = ref(false)
 const topmostError = ref(false)
+const isTopmost = ref(true)
+const shortcutDraft = ref(settings.shortcut)
+const shortcutError = ref('')
+const shortcutReady = ref(false)
+const shortcutBusy = ref(false)
+const layerBusy = ref(false)
+const closeAttempts = ref(0)
+const closeBlocked = ref(false)
+let closeDeadline = 0
+let closeTimer: ReturnType<typeof setTimeout> | undefined
+let closing = false
+
+function resetClose() {
+  clearTimeout(closeTimer)
+  closeAttempts.value = 0
+  closeDeadline = 0
+  closeBlocked.value = false
+}
+watch(() => [settings.closeClicks, settings.closeSeconds], resetClose)
 const adjusting = ref(true)
 const hasBegun = ref(false)
 const unlistenFns: Array<() => void> = []
@@ -36,10 +56,19 @@ onMounted(async () => {
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   const { listen } = await import('@tauri-apps/api/event')
   win = getCurrentWindow()
-  await restoreTopmost()
-  unlistenFns.push(await win.onFocusChanged(({ payload: focused }) => {
-    if (!focused) void restoreTopmost()
+  unlistenFns.push(await listen<boolean>('answer-float:layer', (event) => {
+    isTopmost.value = event.payload
+    topmostError.value = false
   }))
+  unlistenFns.push(await listen<string>('answer-float:control-error', (event) => {
+    topmostError.value = true
+    console.warn('[answer-float]', event.payload)
+  }))
+  unlistenFns.push(await win.onCloseRequested((event) => {
+    event.preventDefault()
+    closeBlocked.value = true
+  }))
+  await saveShortcut()
 
   const { useScreenRecord } = await import('@/composables/useScreenRecord')
   ctl = useScreenRecord()
@@ -52,17 +81,64 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  resetClose()
   for (const fn of unlistenFns) fn()
 })
 
-async function restoreTopmost() {
+async function setLayer(topmost: boolean) {
+  if (layerBusy.value) return
+  layerBusy.value = true
   try {
-    await win?.setAlwaysOnTop(true)
+    isTopmost.value = await invoke<boolean>('set_answer_float_topmost', { topmost })
     topmostError.value = false
   } catch (error) {
     topmostError.value = true
-    console.warn('[answer-float] Could not restore always-on-top:', error)
+    console.warn('[answer-float] Could not change window layer:', error)
+  } finally {
+    layerBusy.value = false
   }
+}
+
+async function restoreTopmost() { await setLayer(true) }
+
+async function saveShortcut() {
+  if (shortcutBusy.value) return
+  shortcutBusy.value = true
+  shortcutError.value = ''
+  try {
+    const value = await invoke<string>('configure_answer_float_shortcut', { shortcut: shortcutDraft.value })
+    settings.shortcut = value
+    shortcutDraft.value = value
+    shortcutReady.value = true
+  } catch (error) {
+    shortcutError.value = i18n.t('answerFloatShortcutFailed')
+    console.warn('[answer-float] Shortcut registration failed:', error)
+  } finally {
+    shortcutBusy.value = false
+  }
+}
+
+function captureShortcut(event: KeyboardEvent) {
+  if (event.key === 'Tab') return
+  event.preventDefault()
+  if (event.repeat || ['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return
+  const modifiers: string[] = []
+  if (event.ctrlKey) modifiers.push('Control')
+  if (event.metaKey) modifiers.push('Super')
+  if (event.altKey) modifiers.push('Alt')
+  if (event.shiftKey) modifiers.push('Shift')
+  if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+    shortcutError.value = i18n.t('answerFloatShortcutModifier')
+    return
+  }
+  const key = event.code.replace(/^Key/, '').replace(/^Digit/, '')
+  if (!/^(?:[A-Z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown|Insert|Delete)$/.test(key)) return
+  shortcutDraft.value = [...modifiers, key].join('+')
+  shortcutError.value = ''
+}
+
+function preventRepeatedKey(event: KeyboardEvent) {
+  if (event.repeat) event.preventDefault()
 }
 
 function onDragArea(e: MouseEvent) {
@@ -76,7 +152,18 @@ async function handleAdjust() {
 }
 
 async function handleExit() {
-  await ctl?.stop()
+  if (closing || !ctl) return
+  const now = performance.now()
+  if (now >= closeDeadline) {
+    resetClose()
+    closeDeadline = now + settings.closeSeconds * 1000
+    closeTimer = setTimeout(resetClose, settings.closeSeconds * 1000)
+  }
+  closeAttempts.value += 1
+  if (closeAttempts.value < settings.closeClicks) return
+  resetClose()
+  closing = true
+  try { await ctl.stop() } finally { closing = false }
 }
 
 async function handleBegin() {
@@ -136,6 +223,7 @@ function isCorrect(idx: number): boolean {
               class="float-btn float-btn-danger"
               @mousedown.stop
               @click="handleExit"
+              @keydown="preventRepeatedKey"
               :title="i18n.t('searchScreenRecordExit')"
             >
               <XMarkIcon class="w-4 h-4" />
@@ -161,6 +249,31 @@ function isCorrect(idx: number): boolean {
           <span>{{ i18n.t('answerFloatFontSize') }} <output>{{ settings.fontSize }} px</output></span>
           <input v-model.number="settings.fontSize" type="range" min="10" max="36" step="1" />
         </label>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatCloseClicks') }} <output>{{ settings.closeClicks }}</output></span>
+          <input v-model.number="settings.closeClicks" type="range" min="2" max="5" step="1" />
+        </label>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatCloseSeconds') }} <output>{{ settings.closeSeconds }} s</output></span>
+          <input v-model.number="settings.closeSeconds" type="range" min="1" max="10" step="1" />
+        </label>
+        <label class="float-setting">
+          <span>{{ i18n.t('answerFloatShortcut') }}</span>
+          <input class="float-shortcut" :value="shortcutDraft" readonly @keydown="captureShortcut" :placeholder="i18n.t('answerFloatShortcutCapture')" />
+        </label>
+        <p class="mt-1">{{ i18n.t('answerFloatShortcutCapture') }}</p>
+        <button class="float-setting-action" :disabled="shortcutBusy" @click="saveShortcut">{{ i18n.t('answerFloatShortcutSave') }}</button>
+        <p v-if="shortcutError" role="alert" class="mt-1" style="color: rgb(var(--md-error))">{{ shortcutError }}</p>
+        <p v-if="shortcutReady" class="mt-1">{{ i18n.t('answerFloatShortcutActive') }}: {{ settings.shortcut }}</p>
+        <p class="mt-2">{{ i18n.t(isTopmost ? 'answerFloatLayerTop' : 'answerFloatLayerBack') }}</p>
+        <button class="float-setting-action" :disabled="layerBusy || (!shortcutReady && isTopmost)" @click="setLayer(!isTopmost)">
+          {{ i18n.t(isTopmost ? 'answerFloatSendBack' : 'answerFloatBringTop') }}
+        </button>
+      </div>
+      <div v-if="closeAttempts || closeBlocked" class="float-settings shrink-0" role="status" aria-live="polite">
+        {{ closeAttempts
+          ? i18n.t('answerFloatCloseProgress', { remaining: settings.closeClicks - closeAttempts, seconds: settings.closeSeconds })
+          : i18n.t('answerFloatCloseInstruction', { count: settings.closeClicks, seconds: settings.closeSeconds }) }}
       </div>
       <button v-if="topmostError" class="float-settings shrink-0 text-left" @click="restoreTopmost">
         {{ i18n.t('answerFloatTopmostRetry') }}
@@ -411,8 +524,15 @@ html, body, #app {
 }
 .float-setting { display: block; margin-top: 5px; }
 .float-setting span { display: flex; justify-content: space-between; gap: 8px; }
-.float-setting input { display: block; width: 100%; accent-color: rgb(var(--md-primary)); }
+.float-setting input[type="range"] { display: block; width: 100%; accent-color: rgb(var(--md-primary)); }
 
+.float-shortcut {
+  width: 100%; margin-top: 6px; padding: 6px;
+  border: 1px solid rgb(var(--md-outline)); border-radius: 6px;
+  color: rgb(var(--md-on-surface)); background: rgb(var(--md-surface));
+}
+.float-setting-action { margin-top: 6px; padding: 5px 9px; border-radius: 6px; background: rgb(var(--md-primary-container)); color: rgb(var(--md-on-primary-container)); }
+.float-setting-action:disabled { opacity: 0.5; cursor: not-allowed; }
 .float-body::-webkit-scrollbar {
   width: 4px;
 }
